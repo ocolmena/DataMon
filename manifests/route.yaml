@@ -1,0 +1,11 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: app
+spec:
+  path: /
+  to:
+    kind: Service
+    name: datamon-service
+  port:
+    targetPort: 8088

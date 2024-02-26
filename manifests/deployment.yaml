@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datamon-deployment
+  labels:
+    app: datamon
+spec:
+  selector:
+    matchLabels:
+      app: datamon
+  template:
+    metadata:
+      annotations:
+        alpha.image.policy.openshift.io/resolve-names: '*'    
+      labels:
+        app: datamon
+    spec:
+      containers:
+      - name: datamon-container
+        image: datamon
+        ports:
+        - containerPort: 8088
+        envFrom:
+          - secretRef:
+              name: minio-config        
+        env:
+          - name: COS_ENDPOINT
+            value: 'ibm-lh-lakehouse-minio-svc.cpd.svc.cluster.local:9000'              

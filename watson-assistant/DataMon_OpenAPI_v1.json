@@ -1,0 +1,273 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "New ESG Services",
+    "description": "High value services to make your life easier using the most comprehensive ESG data sets in the world",
+    "version": "1.0.12",
+    "x-ibm-name": "new-esg-services"
+  },
+  "servers": [
+    {
+      "url": "http://{service-host}/api",
+      "description": "http Datamon service hostname",
+      "variables": {
+          "service-host": {
+            "default": "myhost.com",
+            "description": "Service hostname"
+          }
+      }
+    },
+    {
+      "url": "https://{service-host}/api",
+      "description": "https Datamon service hostname",
+      "variables": {
+          "service-host": {
+            "default": "myhost.com",
+            "description": "Service hostname"
+          }
+      }
+    }
+  ],
+  "security": [
+    {
+      "clientID": []
+    }
+  ],
+  "paths": {
+    "/ESGFastTickerService": {
+      "post": {
+        "summary": "Return all the ESG dimensions for a single portfolio ticker",
+        "requestBody": {
+          "description": "Return all the ESG dimensions for a single portfolio ticker",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ESGFastTickerService"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ESG_properties": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+			                      "Co2": {
+                            "type": "number"
+                          },
+                          "Totalwaste": {
+                            "type": "number"
+                          },
+                          "Envproducts": {
+                            "type": "number"
+                          },
+                          "Envrnd": {
+                            "type": "number"
+                          },
+                          "Wateruse": {
+                            "type": "number"
+                          },
+                          "Energyuse": {
+                            "type": "number"
+                          },
+                          "Policyhumanrights": {
+                            "type": "number"
+                          },
+                          "Policyresponsiblemarketing": {
+                            "type": "number"
+                          },
+                          "Productqualitymonitoring": {
+                            "type": "number"
+                          },
+                          "Policydataprivacy": {
+                            "type": "number"
+                          },
+                          "Womenemployees": {
+                            "type": "number"
+                          },
+                          "Avgtraininghours": {
+                            "type": "number"
+                          },
+                          "Tradeunionrep": {
+                            "type": "number"
+                          },
+                          "Lostdays": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    },
+                    "ISIN": {
+                      "type": "string"
+                    },
+                    "Industry": {
+                      "type": "string"
+                    },
+                    "Ticker": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ESG_properties",
+                    "ISIN",
+                    "Industry",
+                    "Ticker"
+                  ],
+                  "example": "{\"Ticker\": \"ABNP\",\"ISIN\": \"OTOY0BBKWAA1\",\"Industry\": \"Homebuilding and construction supplies\",\"ESG_properties\": [{\"CO2\": 0.95},{\"TotalWaste\": 0.86},{\"EnvProducts\": None},{\"EnvRND\": 0.87},{\"WaterUse\": 0.77},{\"EnergyUse\": 0.61},{\"PolicyHumanRights\": 0.84},{\"PolicyResponsibleMarketing\": None},{\"ProductQualityMonitoring\": None},{\"PolicyDataPrivacy\": 0.45},{\"WomenEmployees\": 0.33},{\"AvgTrainingHours\": 0.97},{\"TradeUnionRep\": 0.48},{\"LostDays\": 0.51}]}"
+                }
+              }
+            }
+          }
+        },
+        "x-codegen-request-body-name": "ESGFastTickerService"
+      }
+    },
+    "/ESGPortfolioService": {
+      "post": {
+        "summary": "Calculate a list of ESG dimensions for a portfolio ticker list using multiple data sources",
+        "requestBody": {
+          "description": "Calculate a list of ESG dimensions for a portfolio ticker list using multiple data sources",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ESGPortfolioService"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "description": "success",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "example": "[{\"Ticker\":\"ABNP\",\"ISIN\":\"OTOY0BBKWAA1\",\"Industry\":\"Homebuilding and construction supplies\",\"CO2\":\"0.95\"}]"
+                }
+              }
+            }
+          }
+        },
+        "x-codegen-request-body-name": "ESGPortfolioService"
+      }
+    },
+    "/calculateAgeService": {
+      "post": {
+        "summary": "Calcuate the age of a person in years based on their date of birth and the current date",
+        "requestBody": {
+          "description": "Calcuate the age of a person in years based on their date of birth and the current date",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/calculateAgeService"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "description": "success",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "example": "{\"age\": 44,\"name\": \"Good Morning Fred Tester\"}"
+                }
+              }
+            }
+          }
+        },
+        "x-codegen-request-body-name": "calculateAgeService"
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ESGFastTickerService": {
+        "required": [
+          "ticker"
+        ],
+        "type": "object",
+        "properties": {
+          "ticker": {
+            "type": "string"
+          }
+        },
+        "example": "{\"ticker\": \"ABNP\"}"
+      },
+      "ESGPortfolioService": {
+        "type": "object",
+        "example": "{\"portfolio\": [\"ABNP\"],\"categories\": [\"CO2\"]}"
+      },
+      "calculateAgeService": {
+        "type": "object",
+        "example": "{\"firstName\": \"Fred\",\"surname\": \"Tester\",\"DOB\": \"12/03/1978\"}"
+      }
+    },
+    "securitySchemes": {
+      "clientID": {
+        "type": "apiKey",
+        "name": "X-IBM-Client-Id",
+        "in": "header"
+      }
+    }
+  },
+  "x-ibm-configuration": {
+    "activity-log": {
+      "enabled": true,
+      "error-content": "payload",
+      "success-content": "activity"
+    },
+    "assembly": {
+      "execute": [
+        {
+          "invoke": {
+            "follow-redirects": false,
+            "header-control": {
+              "type": "blocklist",
+              "values": [
+                "^X-IBM-Client-Id$"
+              ]
+            },
+            "inject-proxy-headers": true,
+            "parameter-control": {
+              "type": "blocklist"
+            },
+            "target-url": "$(target-url)$(request.path)",
+            "timeout": 60,
+            "title": "invoke",
+            "verb": "keep",
+            "version": "2.0.0"
+          }
+        }
+      ],
+      "finally": []
+    },
+    "cors": {
+      "enabled": true
+    },
+    "enforced": true,
+    "gateway": "datapower-api-gateway",
+    "phase": "realized",
+    "properties": {
+      "target-url": {
+        "description": "The URL of the Code Engine service",
+        "encoded": false,
+        "value": "http://{service-host}"
+      }
+    },
+    "testable": true,
+    "type": "rest"
+  }
+}

@@ -1,0 +1,740 @@
+{
+    "cells": [
+     {
+      "cell_type": "code",
+      "execution_count": 16,
+      "id": "46f25ef6",
+      "metadata": {
+       "id": "46f25ef6",
+       "tags": []
+      },
+      "outputs": [],
+      "source": [
+       "import json\n",
+       "import pandas as pd\n",
+       "import numpy as np\n",
+       "import os"
+      ]
+     },
+     {
+      "cell_type": "code",
+      "execution_count": 17,
+      "id": "320cb67c-6b98-4e93-a24c-d6c492bae13d",
+      "metadata": {
+       "id": "320cb67c-6b98-4e93-a24c-d6c492bae13d",
+       "tags": []
+      },
+      "outputs": [],
+      "source": [
+       "COS_API_KEY_ID = os.environ.get(\"COS_API_KEY_ID\", \"none\")\n",
+       "# print(\"key: \" + COS_API_KEY_ID)\n",
+       "if COS_API_KEY_ID == \"none\":\n",
+       "    print(\"No COS API KEY!!\")\n",
+       "    #for name, value in os.environ.items():\n",
+       "    #    print(\"{0}: {1}\".format(name, value))"
+      ]
+     },
+     {
+      "cell_type": "code",
+      "execution_count": 18,
+      "id": "6081d03a-87f2-48b5-a6ac-901410832839",
+      "metadata": {
+       "id": "6081d03a-87f2-48b5-a6ac-901410832839",
+       "tags": []
+      },
+      "outputs": [],
+      "source": [
+       "# ibm s3\n",
+       "import ibm_boto3\n",
+       "from ibm_botocore.client import Config, ClientError"
+      ]
+     },
+     {
+      "cell_type": "code",
+      "execution_count": 20,
+      "id": "8898e5a7",
+      "metadata": {
+       "id": "8898e5a7",
+       "tags": [
+        "parameters"
+       ]
+      },
+      "outputs": [],
+      "source": [
+       "# Parameters\n",
+       "\n",
+       "description=\"Return all the ESG dimensions for a single portfolio ticker\"\n",
+       "\n",
+       "output=\"output.json\"\n",
+       "\n",
+       "input={\"ticker\": \"ABNP\"}\n",
+       "\n",
+       "results={\"Ticker\": \"ABNP\",\n",
+       "         \"ISIN\": \"OTOY0BBKWAA1\",\n",
+       "         \"Industry\": \"Homebuilding and construction supplies\",\n",
+       "         \"ESG_properties\": [\n",
+       "             {\"C02\": 0.59},\n",
+       "             {\"TotalWaste\": 0.86}, \n",
+       "             {\"EnvProducts\": None}, \n",
+       "             {\"EnvRND\": 0.87}, \n",
+       "             {\"WaterUse\": 0.77}, \n",
+       "             {\"EnergyUse\": 0.61}, \n",
+       "             {\"PolicyHumanRights\": 0.84}, \n",
+       "             {\"PolicyResponsibleMarketing\": None}, \n",
+       "             {\"ProductQualityMonitoring\": None}, \n",
+       "             {\"PolicyDataPrivacy\": 0.45}, \n",
+       "             {\"WomenEmployees\": 0.33}, \n",
+       "             {\"AvgTrainingHours\": 0.97}, \n",
+       "             {\"TradeUnionRep\": 0.48}, \n",
+       "             {\"LostDays\": 0.51}]}"
+      ]
+     },
+     {
+      "cell_type": "markdown",
+      "id": "6bea5885",
+      "metadata": {
+       "id": "6bea5885"
+      },
+      "source": [
+       "Test curl post:\n",
+       "\n",
+       "    curl -X POST https://datamon.15nwk2ygtk89.eu-de.codeengine.appdomain.cloud/api/ESGFastTickerService -H 'Content-Type: application/json' -d '{\"portfolio\": \"ABNF\"}'"
+      ]
+     },
+     {
+      "cell_type": "code",
+      "execution_count": 7,
+      "id": "bb282395-6094-41de-8b68-5a4c0c6bc18f",
+      "metadata": {
+       "id": "bb282395-6094-41de-8b68-5a4c0c6bc18f",
+       "tags": []
+      },
+      "outputs": [
+       {
+        "name": "stdout",
+        "output_type": "stream",
+        "text": [
+         "Retrieving item from bucket: gas-datamon, key: ESG-consolidated.csv\n"
+        ]
+       }
+      ],
+      "source": [
+       "# Constants for IBM COS values\n",
+       "COS_ENDPOINT = \"https://s3.us-east.cloud-object-storage.appdomain.cloud\" # Current list avaiable at https://control.cloud-object-storage.cloud.ibm.com/v2/endpoints\n",
+       "#COS_API_KEY_ID = # <api-key> eg \"W00YixxxxxxxxxxMB-odB-2ySfTrFBIQQWanc--P3byk\"\n",
+       "COS_INSTANCE_CRN = \"crn:v1:bluemix:public:cloud-object-storage:global:a/b71ac2564ef0b98f1032d189795994dc:f7e4281d-a7f2-4923-8e6b-07f99ac93bbd::\" # <service-instance-id> eg \"crn:v1:bluemix:public:cloud-object-storage:global:a/3bf0d9003xxxxxxxxxx1c3e97696b71c:d6f04d83-6c4f-4a62-a165-696756d63903::\"\n",
+       "\n",
+       "# Create client \n",
+       "s3_client = ibm_boto3.client(\"s3\",\n",
+       "    ibm_api_key_id=COS_API_KEY_ID,\n",
+       "    ibm_service_instance_id=COS_INSTANCE_CRN,\n",
+       "    config=Config(signature_version=\"oauth\"),\n",
+       "    endpoint_url=COS_ENDPOINT\n",
+       ")\n",
+       "file_name = \"ESG-consolidated.csv\"\n",
+       "bucket = \"gas-datamon\"\n",
+       "\n",
+       "\n",
+       "print(\"Retrieving item from bucket: {0}, key: {1}\".format(bucket, file_name))\n",
+       "try:\n",
+       "    s3_client.download_file(bucket, file_name,file_name)\n",
+       "except ClientError as e:\n",
+       "    e\n"
+      ]
+     },
+     {
+      "cell_type": "code",
+      "execution_count": 8,
+      "id": "fa949bca",
+      "metadata": {
+       "id": "fa949bca",
+       "tags": []
+      },
+      "outputs": [
+       {
+        "data": {
+         "text/html": [
+          "<div>\n",
+          "<style scoped>\n",
+          "    .dataframe tbody tr th:only-of-type {\n",
+          "        vertical-align: middle;\n",
+          "    }\n",
+          "\n",
+          "    .dataframe tbody tr th {\n",
+          "        vertical-align: top;\n",
+          "    }\n",
+          "\n",
+          "    .dataframe thead th {\n",
+          "        text-align: right;\n",
+          "    }\n",
+          "</style>\n",
+          "<table border=\"1\" class=\"dataframe\">\n",
+          "  <thead>\n",
+          "    <tr style=\"text-align: right;\">\n",
+          "      <th></th>\n",
+          "      <th>Ticker</th>\n",
+          "      <th>Isin</th>\n",
+          "      <th>Industry</th>\n",
+          "      <th>Co2</th>\n",
+          "      <th>Totalwaste</th>\n",
+          "      <th>Envproducts</th>\n",
+          "      <th>Envrnd</th>\n",
+          "      <th>Wateruse</th>\n",
+          "      <th>Energyuse</th>\n",
+          "      <th>Policyhumanrights</th>\n",
+          "      <th>Policyresponsiblemarketing</th>\n",
+          "      <th>Productqualitymonitoring</th>\n",
+          "      <th>Policydataprivacy</th>\n",
+          "      <th>Womenemployees</th>\n",
+          "      <th>Avgtraininghours</th>\n",
+          "      <th>Tradeunionrep</th>\n",
+          "      <th>Lostdays</th>\n",
+          "    </tr>\n",
+          "  </thead>\n",
+          "  <tbody>\n",
+          "    <tr>\n",
+          "      <th>0</th>\n",
+          "      <td>AAA</td>\n",
+          "      <td>TXQZUHLG5NY8</td>\n",
+          "      <td>Uranium</td>\n",
+          "      <td>0.72</td>\n",
+          "      <td>0.69</td>\n",
+          "      <td>0.56</td>\n",
+          "      <td>0.09</td>\n",
+          "      <td>0.98</td>\n",
+          "      <td>0.21</td>\n",
+          "      <td>0.90</td>\n",
+          "      <td>NaN</td>\n",
+          "      <td>0.53</td>\n",
+          "      <td>0.99</td>\n",
+          "      <td>0.06</td>\n",
+          "      <td>0.49</td>\n",
+          "      <td>0.92</td>\n",
+          "      <td>0.95</td>\n",
+          "    </tr>\n",
+          "    <tr>\n",
+          "      <th>1</th>\n",
+          "      <td>AAA</td>\n",
+          "      <td>XWRAB50IC615</td>\n",
+          "      <td>Oil and gas related equipment and services</td>\n",
+          "      <td>NaN</td>\n",
+          "      <td>0.58</td>\n",
+          "      <td>0.48</td>\n",
+          "      <td>0.91</td>\n",
+          "      <td>0.11</td>\n",
+          "      <td>NaN</td>\n",
+          "      <td>NaN</td>\n",
+          "      <td>0.77</td>\n",
+          "      <td>0.08</td>\n",
+          "      <td>0.39</td>\n",
+          "      <td>0.89</td>\n",
+          "      <td>0.17</td>\n",
+          "      <td>0.74</td>\n",
+          "      <td>0.39</td>\n",
+          "    </tr>\n",
+          "    <tr>\n",
+          "      <th>2</th>\n",
+          "      <td>AAB</td>\n",
+          "      <td>RFCZ0ZTS4UN8</td>\n",
+          "      <td>Communications and networking</td>\n",
+          "      <td>0.17</td>\n",
+          "      <td>0.12</td>\n",
+          "      <td>NaN</td>\n",
+          "      <td>0.17</td>\n",
+          "      <td>NaN</td>\n",
+          "      <td>0.55</td>\n",
+          "      <td>0.68</td>\n",
+          "      <td>NaN</td>\n",
+          "      <td>0.58</td>\n",
+          "      <td>0.58</td>\n",
+          "      <td>0.95</td>\n",
+          "      <td>0.31</td>\n",
+          "      <td>0.79</td>\n",
+          "      <td>0.08</td>\n",
+          "    </tr>\n",
+          "    <tr>\n",
+          "      <th>3</th>\n",
+          "      <td>AAB</td>\n",
+          "      <td>EOV5KVM2O478</td>\n",
+          "      <td>Renewable energy</td>\n",
+          "      <td>0.87</td>\n",
+          "      <td>0.83</td>\n",
+          "      <td>0.60</td>\n",
+          "      <td>NaN</td>\n",
+          "      <td>0.04</td>\n",
+          "      <td>NaN</td>\n",
+          "      <td>NaN</td>\n",
+          "      <td>0.06</td>\n",
+          "      <td>0.83</td>\n",
+          "      <td>0.10</td>\n",
+          "      <td>0.55</td>\n",
+          "      <td>0.12</td>\n",
+          "      <td>0.55</td>\n",
+          "      <td>0.52</td>\n",
+          "    </tr>\n",
+          "    <tr>\n",
+          "      <th>4</th>\n",
+          "      <td>AACR</td>\n",
+          "      <td>VA027WKEBL70</td>\n",
+          "      <td>Media and publishing</td>\n",
+          "      <td>0.36</td>\n",
+          "      <td>0.98</td>\n",
+          "      <td>0.63</td>\n",
+          "      <td>0.85</td>\n",
+          "      <td>0.11</td>\n",
+          "      <td>0.42</td>\n",
+          "      <td>0.11</td>\n",
+          "      <td>0.34</td>\n",
+          "      <td>0.42</td>\n",
+          "      <td>0.29</td>\n",
+          "      <td>0.34</td>\n",
+          "      <td>0.24</td>\n",
+          "      <td>0.74</td>\n",
+          "      <td>0.09</td>\n",
+          "    </tr>\n",
+          "  </tbody>\n",
+          "</table>\n",
+          "</div>"
+         ],
+         "text/plain": [
+          "  Ticker          Isin                                    Industry   Co2  \\\n",
+          "0    AAA  TXQZUHLG5NY8                                     Uranium  0.72   \n",
+          "1    AAA  XWRAB50IC615  Oil and gas related equipment and services   NaN   \n",
+          "2    AAB  RFCZ0ZTS4UN8               Communications and networking  0.17   \n",
+          "3    AAB  EOV5KVM2O478                            Renewable energy  0.87   \n",
+          "4   AACR  VA027WKEBL70                        Media and publishing  0.36   \n",
+          "\n",
+          "   Totalwaste  Envproducts  Envrnd  Wateruse  Energyuse  Policyhumanrights  \\\n",
+          "0        0.69         0.56    0.09      0.98       0.21               0.90   \n",
+          "1        0.58         0.48    0.91      0.11        NaN                NaN   \n",
+          "2        0.12          NaN    0.17       NaN       0.55               0.68   \n",
+          "3        0.83         0.60     NaN      0.04        NaN                NaN   \n",
+          "4        0.98         0.63    0.85      0.11       0.42               0.11   \n",
+          "\n",
+          "   Policyresponsiblemarketing  Productqualitymonitoring  Policydataprivacy  \\\n",
+          "0                         NaN                      0.53               0.99   \n",
+          "1                        0.77                      0.08               0.39   \n",
+          "2                         NaN                      0.58               0.58   \n",
+          "3                        0.06                      0.83               0.10   \n",
+          "4                        0.34                      0.42               0.29   \n",
+          "\n",
+          "   Womenemployees  Avgtraininghours  Tradeunionrep  Lostdays  \n",
+          "0            0.06              0.49           0.92      0.95  \n",
+          "1            0.89              0.17           0.74      0.39  \n",
+          "2            0.95              0.31           0.79      0.08  \n",
+          "3            0.55              0.12           0.55      0.52  \n",
+          "4            0.34              0.24           0.74      0.09  "
+         ]
+        },
+        "execution_count": 8,
+        "metadata": {},
+        "output_type": "execute_result"
+       }
+      ],
+      "source": [
+       "source = pd.read_csv(file_name)\n",
+       "source.head(5)"
+      ]
+     },
+     {
+      "cell_type": "code",
+      "execution_count": 9,
+      "id": "b762c3f6",
+      "metadata": {
+       "id": "b762c3f6",
+       "tags": []
+      },
+      "outputs": [
+       {
+        "data": {
+         "text/html": [
+          "<div>\n",
+          "<style scoped>\n",
+          "    .dataframe tbody tr th:only-of-type {\n",
+          "        vertical-align: middle;\n",
+          "    }\n",
+          "\n",
+          "    .dataframe tbody tr th {\n",
+          "        vertical-align: top;\n",
+          "    }\n",
+          "\n",
+          "    .dataframe thead th {\n",
+          "        text-align: right;\n",
+          "    }\n",
+          "</style>\n",
+          "<table border=\"1\" class=\"dataframe\">\n",
+          "  <thead>\n",
+          "    <tr style=\"text-align: right;\">\n",
+          "      <th></th>\n",
+          "      <th>Ticker</th>\n",
+          "      <th>Isin</th>\n",
+          "      <th>Industry</th>\n",
+          "      <th>Co2</th>\n",
+          "      <th>Totalwaste</th>\n",
+          "      <th>Envproducts</th>\n",
+          "      <th>Envrnd</th>\n",
+          "      <th>Wateruse</th>\n",
+          "      <th>Energyuse</th>\n",
+          "      <th>Policyhumanrights</th>\n",
+          "      <th>Policyresponsiblemarketing</th>\n",
+          "      <th>Productqualitymonitoring</th>\n",
+          "      <th>Policydataprivacy</th>\n",
+          "      <th>Womenemployees</th>\n",
+          "      <th>Avgtraininghours</th>\n",
+          "      <th>Tradeunionrep</th>\n",
+          "      <th>Lostdays</th>\n",
+          "    </tr>\n",
+          "  </thead>\n",
+          "  <tbody>\n",
+          "    <tr>\n",
+          "      <th>29</th>\n",
+          "      <td>ABNP</td>\n",
+          "      <td>OTOY0BBKWAA1</td>\n",
+          "      <td>Homebuilding and construction supplies</td>\n",
+          "      <td>0.95</td>\n",
+          "      <td>0.86</td>\n",
+          "      <td>0.44</td>\n",
+          "      <td>0.87</td>\n",
+          "      <td>0.77</td>\n",
+          "      <td>0.61</td>\n",
+          "      <td>0.84</td>\n",
+          "      <td>NaN</td>\n",
+          "      <td>0.78</td>\n",
+          "      <td>0.45</td>\n",
+          "      <td>0.33</td>\n",
+          "      <td>0.97</td>\n",
+          "      <td>0.48</td>\n",
+          "      <td>0.51</td>\n",
+          "    </tr>\n",
+          "  </tbody>\n",
+          "</table>\n",
+          "</div>"
+         ],
+         "text/plain": [
+          "   Ticker          Isin                                Industry   Co2  \\\n",
+          "29   ABNP  OTOY0BBKWAA1  Homebuilding and construction supplies  0.95   \n",
+          "\n",
+          "    Totalwaste  Envproducts  Envrnd  Wateruse  Energyuse  Policyhumanrights  \\\n",
+          "29        0.86         0.44    0.87      0.77       0.61               0.84   \n",
+          "\n",
+          "    Policyresponsiblemarketing  Productqualitymonitoring  Policydataprivacy  \\\n",
+          "29                         NaN                      0.78               0.45   \n",
+          "\n",
+          "    Womenemployees  Avgtraininghours  Tradeunionrep  Lostdays  \n",
+          "29            0.33              0.97           0.48      0.51  "
+         ]
+        },
+        "execution_count": 9,
+        "metadata": {},
+        "output_type": "execute_result"
+       },
+       {
+        "data": {
+         "text/html": [
+          "<div>\n",
+          "<style scoped>\n",
+          "    .dataframe tbody tr th:only-of-type {\n",
+          "        vertical-align: middle;\n",
+          "    }\n",
+          "\n",
+          "    .dataframe tbody tr th {\n",
+          "        vertical-align: top;\n",
+          "    }\n",
+          "\n",
+          "    .dataframe thead th {\n",
+          "        text-align: right;\n",
+          "    }\n",
+          "</style>\n",
+          "<table border=\"1\" class=\"dataframe\">\n",
+          "  <thead>\n",
+          "    <tr style=\"text-align: right;\">\n",
+          "      <th></th>\n",
+          "      <th>Ticker</th>\n",
+          "      <th>Isin</th>\n",
+          "      <th>Industry</th>\n",
+          "      <th>Co2</th>\n",
+          "      <th>Totalwaste</th>\n",
+          "      <th>Envproducts</th>\n",
+          "      <th>Envrnd</th>\n",
+          "      <th>Wateruse</th>\n",
+          "      <th>Energyuse</th>\n",
+          "      <th>Policyhumanrights</th>\n",
+          "      <th>Policyresponsiblemarketing</th>\n",
+          "      <th>Productqualitymonitoring</th>\n",
+          "      <th>Policydataprivacy</th>\n",
+          "      <th>Womenemployees</th>\n",
+          "      <th>Avgtraininghours</th>\n",
+          "      <th>Tradeunionrep</th>\n",
+          "      <th>Lostdays</th>\n",
+          "    </tr>\n",
+          "  </thead>\n",
+          "  <tbody>\n",
+          "    <tr>\n",
+          "      <th>29</th>\n",
+          "      <td>ABNP</td>\n",
+          "      <td>OTOY0BBKWAA1</td>\n",
+          "      <td>Homebuilding and construction supplies</td>\n",
+          "      <td>0.95</td>\n",
+          "      <td>0.86</td>\n",
+          "      <td>0.44</td>\n",
+          "      <td>0.87</td>\n",
+          "      <td>0.77</td>\n",
+          "      <td>0.61</td>\n",
+          "      <td>0.84</td>\n",
+          "      <td>NaN</td>\n",
+          "      <td>0.78</td>\n",
+          "      <td>0.45</td>\n",
+          "      <td>0.33</td>\n",
+          "      <td>0.97</td>\n",
+          "      <td>0.48</td>\n",
+          "      <td>0.51</td>\n",
+          "    </tr>\n",
+          "  </tbody>\n",
+          "</table>\n",
+          "</div>"
+         ],
+         "text/plain": [
+          "   Ticker          Isin                                Industry   Co2  \\\n",
+          "29   ABNP  OTOY0BBKWAA1  Homebuilding and construction supplies  0.95   \n",
+          "\n",
+          "    Totalwaste  Envproducts  Envrnd  Wateruse  Energyuse  Policyhumanrights  \\\n",
+          "29        0.86         0.44    0.87      0.77       0.61               0.84   \n",
+          "\n",
+          "    Policyresponsiblemarketing  Productqualitymonitoring  Policydataprivacy  \\\n",
+          "29                         NaN                      0.78               0.45   \n",
+          "\n",
+          "    Womenemployees  Avgtraininghours  Tradeunionrep  Lostdays  \n",
+          "29            0.33              0.97           0.48      0.51  "
+         ]
+        },
+        "execution_count": 9,
+        "metadata": {},
+        "output_type": "execute_result"
+       }
+      ],
+      "source": [
+       "source = source[source['Ticker'] == input['ticker']]\n",
+       "source"
+      ]
+     },
+     {
+      "cell_type": "code",
+      "execution_count": 10,
+      "id": "e32524c9",
+      "metadata": {
+       "id": "e32524c9",
+       "tags": []
+      },
+      "outputs": [
+       {
+        "data": {
+         "text/plain": [
+          "{'Ticker': 'ABNP',\n",
+          " 'ISIN': 'OTOY0BBKWAA1',\n",
+          " 'Industry': 'Homebuilding and construction supplies'}"
+         ]
+        },
+        "execution_count": 10,
+        "metadata": {},
+        "output_type": "execute_result"
+       }
+      ],
+      "source": [
+       "output_dict={}\n",
+       "output_dict['Ticker'] = source['Ticker'].values[0]\n",
+       "output_dict['ISIN'] = source['Isin'].values[0]\n",
+       "output_dict['Industry'] = source['Industry'].values[0]\n",
+       "output_dict"
+      ]
+     },
+     {
+      "cell_type": "code",
+      "execution_count": 13,
+      "id": "5a24e0b7",
+      "metadata": {
+       "id": "5a24e0b7",
+       "tags": []
+      },
+      "outputs": [
+       {
+        "data": {
+         "text/plain": [
+          "array(['Totalwaste', 'Envproducts', 'Envrnd', 'Wateruse', 'Energyuse',\n",
+          "       'Policyhumanrights', 'Policyresponsiblemarketing',\n",
+          "       'Productqualitymonitoring', 'Policydataprivacy', 'Womenemployees',\n",
+          "       'Avgtraininghours', 'Tradeunionrep', 'Lostdays'], dtype=object)"
+         ]
+        },
+        "execution_count": 13,
+        "metadata": {},
+        "output_type": "execute_result"
+       },
+       {
+        "data": {
+         "text/plain": [
+          "array(['Totalwaste', 'Envproducts', 'Envrnd', 'Wateruse', 'Energyuse',\n",
+          "       'Policyhumanrights', 'Policyresponsiblemarketing',\n",
+          "       'Productqualitymonitoring', 'Policydataprivacy', 'Womenemployees',\n",
+          "       'Avgtraininghours', 'Tradeunionrep', 'Lostdays'], dtype=object)"
+         ]
+        },
+        "execution_count": 13,
+        "metadata": {},
+        "output_type": "execute_result"
+       }
+      ],
+      "source": [
+       "cols = source.columns.values\n",
+       "cols = cols[3:]\n",
+       "cols"
+      ]
+     },
+     {
+      "cell_type": "code",
+      "execution_count": 14,
+      "id": "7d826f57",
+      "metadata": {
+       "id": "7d826f57",
+       "tags": []
+      },
+      "outputs": [
+       {
+        "data": {
+         "text/plain": [
+          "[{'Totalwaste': 0.86},\n",
+          " {'Envproducts': 0.44},\n",
+          " {'Envrnd': 0.87},\n",
+          " {'Wateruse': 0.77},\n",
+          " {'Energyuse': 0.61},\n",
+          " {'Policyhumanrights': 0.84},\n",
+          " {'Policyresponsiblemarketing': nan},\n",
+          " {'Productqualitymonitoring': 0.78},\n",
+          " {'Policydataprivacy': 0.45},\n",
+          " {'Womenemployees': 0.33},\n",
+          " {'Avgtraininghours': 0.97},\n",
+          " {'Tradeunionrep': 0.48},\n",
+          " {'Lostdays': 0.51}]"
+         ]
+        },
+        "execution_count": 14,
+        "metadata": {},
+        "output_type": "execute_result"
+       }
+      ],
+      "source": [
+       "property_list=[]\n",
+       "for dimension in cols:\n",
+       "    obj_dict={}\n",
+       "    obj_dict[dimension] = source[dimension].values[0]\n",
+       "    property_list.append(obj_dict)\n",
+       "property_list"
+      ]
+     },
+     {
+      "cell_type": "code",
+      "execution_count": 15,
+      "id": "9d892c02",
+      "metadata": {
+       "id": "9d892c02",
+       "tags": []
+      },
+      "outputs": [
+       {
+        "data": {
+         "text/plain": [
+          "{'Ticker': 'ABNP',\n",
+          " 'ISIN': 'OTOY0BBKWAA1',\n",
+          " 'Industry': 'Homebuilding and construction supplies',\n",
+          " 'ESG_properties': [{'Totalwaste': 0.86},\n",
+          "  {'Envproducts': 0.44},\n",
+          "  {'Envrnd': 0.87},\n",
+          "  {'Wateruse': 0.77},\n",
+          "  {'Energyuse': 0.61},\n",
+          "  {'Policyhumanrights': 0.84},\n",
+          "  {'Policyresponsiblemarketing': nan},\n",
+          "  {'Productqualitymonitoring': 0.78},\n",
+          "  {'Policydataprivacy': 0.45},\n",
+          "  {'Womenemployees': 0.33},\n",
+          "  {'Avgtraininghours': 0.97},\n",
+          "  {'Tradeunionrep': 0.48},\n",
+          "  {'Lostdays': 0.51}]}"
+         ]
+        },
+        "execution_count": 15,
+        "metadata": {},
+        "output_type": "execute_result"
+       }
+      ],
+      "source": [
+       "output_dict[\"ESG_properties\"] = property_list\n",
+       "output_dict"
+      ]
+     },
+     {
+      "cell_type": "code",
+      "execution_count": 12,
+      "id": "5bb86f8c",
+      "metadata": {
+       "id": "5bb86f8c",
+       "tags": []
+      },
+      "outputs": [],
+      "source": [
+       "jsonString = json.dumps(output_dict)\n",
+       "jsonString"
+      ]
+     },
+     {
+      "cell_type": "code",
+      "execution_count": 41,
+      "id": "fbdce6b6",
+      "metadata": {
+       "id": "fbdce6b6",
+       "tags": []
+      },
+      "outputs": [],
+      "source": [
+       " # Writing to sample.json\n",
+       "with open(output, \"w\") as outfile:\n",
+       "    outfile.write(jsonString)"
+      ]
+     },
+     {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "0368b76b",
+      "metadata": {
+       "id": "0368b76b"
+      },
+      "outputs": [],
+      "source": []
+     }
+    ],
+    "metadata": {
+     "celltoolbar": "Tags",
+     "kernelspec": {
+      "display_name": "Python 3.10",
+      "language": "python",
+      "name": "python3"
+     },
+     "language_info": {
+      "codemirror_mode": {
+       "name": "ipython",
+       "version": 3
+      },
+      "file_extension": ".py",
+      "mimetype": "text/x-python",
+      "name": "python",
+      "nbconvert_exporter": "python",
+      "pygments_lexer": "ipython3",
+      "version": "3.10.10"
+     },
+     "vscode": {
+      "interpreter": {
+       "hash": "b0fa6594d8f4cbf19f97940f81e996739fb7646882a419484c72d19e05852a7e"
+      }
+     }
+    },
+    "nbformat": 4,
+    "nbformat_minor": 5
+   }
